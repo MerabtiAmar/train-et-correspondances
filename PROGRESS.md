@@ -6,15 +6,17 @@ Phase 0: collector **deployed** on 2026-11-16 on its own Always Free VM `tc-coll
 The family VM `siwel-turn` (coturn, 1 GB) is untouched and off-limits; Claude's key was removed from it.
 Container healthy, caps applied (0.5 CPU, 768 MB, 128 pids), no published port, VM ports unchanged.
 First cycles on the VM: feeds fetched, raw samples written, static GTFS converted, 194 MB used.
-Still in dry-run until the owner copies `.env.vm` (HF token) to the VM; Claude cannot read that file.
+Upload enabled (`"dry_run": false`): HF token copied by the owner, write right checked (`repo.write`
+on the owner's namespace), dataset card published to `AmarMerabti/train-correspondances-gtfs-rt`.
+Local `.env.vm` deleted afterwards (OneDrive-synced folder); the token now lives only on the VM.
 `uv run pytest -q`: 99 passed, `ruff check` clean. Memory budget: ADR 0005 (compaction 335 MB peak).
 
 Tooling: `scripts/oci_create_vm.sh` (Cloud Shell: creates the VM, retries Oracle 429, falls back to
 Micro, never creates two), `scripts/vm.sh prepare|install|status|configure|update|stop|uninstall`.
 
 ## Next
-1. Owner: `scp` `.env.vm` to the VM (command given in chat); then Claude strips CRLF, chmod 600,
-   recreates the container and checks `"dry_run": false`.
+1. Optional hardening: restrict the HF token to this single dataset (today it can write to every repo
+   of the owner's namespace); then `bash scripts/vm.sh configure` on the VM.
 2. After 03:00 Paris on 2026-11-17: check `day uploaded` in the logs and the HF dataset card
    (first day is partial), and `docker stats` during compaction.
 3. Phase 0 interviews / waiting list (docs/PLAN.md); Phase 1 labelling needs a few weeks of data.
