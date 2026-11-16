@@ -1,0 +1,19 @@
+{
+  "recorded_at": "2026-11-16T14:59:36+00:00",
+  "trip_updates": {
+    "source_url": "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates",
+    "feed_timestamp": 1794841087,
+    "entities_total": 1615,
+    "entities_kept": 253,
+    "raw_bytes": 1116901,
+    "fixture_bytes": 189768
+  },
+  "alerts": {
+    "source_url": "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-service-alerts",
+    "feed_timestamp": 1794841109,
+    "entities_total": 125,
+    "entities_kept": 110,
+    "raw_bytes": 216969,
+    "fixture_bytes": 189775
+  }
+}
