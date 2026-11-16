@@ -36,7 +36,8 @@ init_docker() {
   else
     die "docker ne répond pas (service arrêté ?)."
   fi
-  docker_cmd compose version >/dev/null 2>&1 || die "le plugin « docker compose » (v2) est absent."
+  docker_cmd compose version >/dev/null 2>&1 ||
+    die "le plugin « docker compose » (v2) est absent. N'installez rien : envoyez-moi la sortie de « docker-compose --version » et « docker ps »."
 }
 
 # ---- .env ----------------------------------------------------------------------------------
@@ -103,6 +104,9 @@ list_ports() { ss -tuln | awk 'NR > 1 { print $1, $5 }' | sort -u; }
 
 check_prereqs() {
   say "Vérifications (lecture seule)"
+  if [ "$(hostname)" = "cloudshell" ] || [ -n "${OCI_CLI_CLOUD_SHELL:-}" ]; then
+    die "vous êtes dans Oracle Cloud Shell (le terminal du navigateur), pas sur la VM. Connectez-vous d'abord à la VM (ssh), puis relancez ce script là-bas."
+  fi
   ok "architecture : $(uname -m)"
   command -v git >/dev/null || die "git est absent"
   init_docker
