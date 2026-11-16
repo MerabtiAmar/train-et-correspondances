@@ -1,0 +1,44 @@
+# Collector only. Paths are relative to this file (docker/), hence the ".." to the repo root.
+# There is deliberately no `ports:` section: nothing listens, nothing is published.
+name: tc-collector
+
+services:
+  collector:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: tc-collector:local
+    container_name: tc-collector
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s # SIGTERM flushes the current hour to disk before exiting
+
+    # Hard caps so this container can never starve the other apps on the VM.
+    cpus: "0.5"
+    mem_limit: 768m
+    memswap_limit: 768m # same as mem_limit: no swap
+    pids_limit: 128
+
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+    env_file: ../.env
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      # :z lets SELinux hosts (Oracle Linux) write to the folder; ignored elsewhere.
+      - ../data:/app/data:z
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    healthcheck:
+      test: ["CMD", "python", "-m", "tc.health"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
