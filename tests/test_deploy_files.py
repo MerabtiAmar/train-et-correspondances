@@ -2,6 +2,8 @@
 plain-text checks of the promises made to the owner of the shared VM)."""
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -62,6 +64,55 @@ def test_dockerfile_is_slim_non_root_and_lf():
     assert 'CMD ["python", "-m", "tc"]' in DOCKERFILE
     for path in (ROOT / "docker" / "Dockerfile", ROOT / "docker" / "compose.yaml"):
         assert b"\r\n" not in path.read_bytes(), f"{path.name} must use LF endings"
+
+
+VM_SH = ROOT / "scripts" / "vm.sh"
+
+
+def _git_bash() -> str | None:
+    bash = shutil.which("bash")
+    if bash is None or "system32" in bash.lower():  # WSL launcher, not a real bash here
+        return None
+    return bash
+
+
+def test_vm_script_is_lf_and_only_drives_its_own_compose_project():
+    text = VM_SH.read_text(encoding="utf-8")
+    assert b"\r\n" not in VM_SH.read_bytes()
+    code = [ln.split("#")[0] for ln in text.splitlines() if not ln.lstrip().startswith("#")]
+    code = "\n".join(code)
+    # every compose call goes through dc(), pinned to docker/compose.yaml
+    assert code.count("compose -f") == 1 and '"$ROOT/docker/compose.yaml"' in code
+    for forbidden in ("prune", "docker rm ", "docker stop", "systemctl enable", "systemctl start",
+                      "ufw", "iptables", "sysctl", "crontab", "HF_TOKEN\")\"\n"):  # fmt: skip
+        assert forbidden not in code, forbidden
+    assert 'echo "$v"' not in code and "printf '%s' \"$v\"" not in code  # token never printed
+
+
+def test_vm_script_syntax():
+    bash = _git_bash()
+    if bash is None:
+        pytest.skip("bash not available")
+    res = subprocess.run([bash, "-n", str(VM_SH)], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+
+
+def test_vm_script_set_env_replaces_values_without_printing_them(tmp_path):
+    bash = _git_bash()
+    if bash is None:
+        pytest.skip("bash not available")
+    (tmp_path / ".env").write_text("HF_REPO=\nHF_TOKEN=\nPOLL_SECONDS=120\n", encoding="utf-8")
+    script = (
+        f'source "{VM_SH.as_posix()}"; ROOT="{tmp_path.as_posix()}"; '
+        r"set_env HF_TOKEN 'hf_abc/+=&\x'; set_env HF_REPO 'me/ds'; set_env NEW_KEY 1; "
+        'printf "%s|%s" "$(get_env HF_REPO)" "$(get_env POLL_SECONDS)"'
+    )
+    res = subprocess.run([bash, "-c", script], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    assert res.stdout == "me/ds|120"
+    lines = (tmp_path / ".env").read_text(encoding="utf-8").splitlines()
+    assert lines == ["HF_REPO=me/ds", r"HF_TOKEN=hf_abc/+=&\x", "POLL_SECONDS=120", "NEW_KEY=1"]
+    assert list(tmp_path.iterdir()) == [tmp_path / ".env"]  # no temp file left
 
 
 def test_env_example_lists_every_documented_variable_with_the_right_defaults():

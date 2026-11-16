@@ -8,6 +8,22 @@ configuration système. Dans toutes les commandes, `dc` désigne :
 alias dc='docker compose -f docker/compose.yaml'   # à retaper après chaque reconnexion, ou noter à part
 ```
 
+## 0. Méthode rapide (recommandée) : le script `scripts/vm.sh`
+
+Après avoir créé le dataset et le jeton Hugging Face (section 2) :
+
+```bash
+cd ~
+git clone https://github.com/MerabtiAmar/train-et-correspondances.git train-correspondances
+cd train-correspondances
+bash scripts/vm.sh install     # vérifie, pose 3 questions, construit, démarre, contrôle la sécurité
+```
+
+Ensuite : `bash scripts/vm.sh status` (état, mémoire, ports, derniers évènements),
+`configure` (changer jeton/dataset/contact), `update`, `stop`, `start`, `uninstall`.
+Le script fait exactement les étapes des sections 1 à 9 ci-dessous, qui restent la référence si vous
+préférez tout taper à la main. Il ne touche qu'à ce dossier et au conteneur `tc-collector`.
+
 ## 1. Prérequis (lecture seule, rien n'est modifié)
 
 ```bash
