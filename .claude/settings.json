@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync *)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run ruff *)",
+      "Bash(uv run python -m tc *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git log *)"
+    ],
+    "ask": [
+      "Bash(uv add *)",
+      "Bash(uv remove *)",
+      "Bash(docker *)",
+      "Bash(git push *)",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(./data/**)",
+      "Read(./logs/**)",
+      "Read(./.venv/**)",
+      "Read(**/*.parquet)",
+      "Read(**/*.pb)",
+      "Read(**/*.pb.gz)",
+      "Read(**/*.zip)",
+      "Read(./.env)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(sftp *)",
+      "Bash(rsync *)",
+      "Bash(oci *)",
+      "Bash(huggingface-cli *)",
+      "Bash(hf *)"
+    ]
+  }
+}

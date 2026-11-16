@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.pdf binary
+*.parquet binary
+*.pb binary
+*.gz binary
+*.zip binary
