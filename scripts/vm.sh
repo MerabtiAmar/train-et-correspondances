@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Collector helper for the Oracle VM, run by the owner:  bash scripts/vm.sh <command>
+# Collector helper for the dedicated collector VM:  bash scripts/vm.sh <command>
+#   prepare    one-time system setup of the DEDICATED VM: Docker, swap (refused on the family VM)
 #   install    checks, .env questions, build, start, wait until healthy, safety checks
 #   status     health, caps, ports, disk use, last important log lines
 #   configure  change contact e-mail / HF dataset / HF token, then restart
 #   update     git pull, rebuild, restart
 #   start | stop | uninstall
-# It only touches this folder, the tc-collector container and its image: never another
-# container, never system configuration. The HF token is never printed.
+# Apart from 'prepare', it only touches this folder, the tc-collector container and its image.
+# The HF token is never printed.
 set -euo pipefail
 
 CONTAINER=tc-collector
@@ -21,7 +22,47 @@ die() {
 }
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
+}
+
+family_vm() { # the owner's family-call VM must never host the collector
+  systemctl list-unit-files 2>/dev/null | grep -Eq '^(coturn|siwel-push)\.service' ||
+    [ "$(hostname)" = "siwel-turn" ]
+}
+
+prepare() {
+  say "Préparation de la VM dédiée au collecteur"
+  if family_vm; then
+    die "cette VM héberge l'application familiale (coturn / siwel) : le collecteur n'a rien à y faire."
+  fi
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  [ "${ID:-}" = "ubuntu" ] || die "seul Ubuntu est géré (trouvé : ${PRETTY_NAME:-?})"
+  if command -v docker >/dev/null && sudo docker compose version >/dev/null 2>&1; then
+    ok "docker et compose déjà présents"
+  else
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2 git >/dev/null
+    ok "installé : $(docker --version)"
+  fi
+  sudo systemctl enable --now docker >/dev/null 2>&1
+  ok "docker actif et démarré au boot"
+  if ! id -nG "$USER" | grep -qw docker; then
+    sudo usermod -aG docker "$USER"
+    ok "$USER ajouté au groupe docker (effectif à la prochaine connexion ; sudo en attendant)"
+  fi
+  local mem_mb
+  mem_mb=$(awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo)
+  if [ "$mem_mb" -lt 2048 ] && [ -z "$(swapon --show --noheadings)" ]; then
+    sudo fallocate -l 2G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile >/dev/null
+    sudo swapon /swapfile
+    grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+    ok "swap de 2 Go ajouté (RAM de $mem_mb Mo : évite les manques de mémoire pendant la construction)"
+  else
+    ok "mémoire : $mem_mb Mo, swap : $(swapon --show --noheadings --bytes | awk '{ s += $3 } END { print int(s / 2^20) }') Mo"
+  fi
 }
 
 docker_cmd() { "${DOCKER[@]}" "$@"; }
@@ -69,11 +110,11 @@ configure() {
   chmod 600 "$ROOT/.env"
   local v cur hint
   cur=$(get_env CONTACT_EMAIL)
-  read -r -p "  Adresse de contact (envoyée aux serveurs des flux) [${cur:-vide}] : " v
+  read -r -p "  Adresse de contact (envoyée aux serveurs des flux) [${cur:-vide}] : " v || v=""
   if [ -n "$v" ]; then set_env CONTACT_EMAIL "$v"; fi
 
   cur=$(get_env HF_REPO)
-  read -r -p "  Dataset Hugging Face, forme pseudo/nom [${cur:-vide}] : " v
+  read -r -p "  Dataset Hugging Face, forme pseudo/nom [${cur:-vide}] : " v || v=""
   if [ -n "$v" ]; then
     if [[ ! "$v" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
       warn "« $v » n'a pas la forme pseudo/nom : vérifiez sur la page du dataset"
@@ -82,7 +123,7 @@ configure() {
   fi
 
   if [ -n "$(get_env HF_TOKEN)" ]; then hint="déjà renseigné"; else hint="vide = dry-run"; fi
-  read -r -s -p "  Jeton Hugging Face hf_... (rien ne s'affiche) [$hint] : " v
+  read -r -s -p "  Jeton Hugging Face hf_... (rien ne s'affiche) [$hint] : " v || v=""
   printf '\n'
   if [ -n "$v" ]; then
     if [[ "$v" != hf_* ]]; then warn "le jeton ne commence pas par hf_ : vérifiez le copier-coller"; fi
@@ -104,6 +145,9 @@ list_ports() { ss -tuln | awk 'NR > 1 { print $1, $5 }' | sort -u; }
 
 check_prereqs() {
   say "Vérifications (lecture seule)"
+  if family_vm; then
+    die "cette VM héberge l'application familiale (coturn / siwel) : installez le collecteur sur sa VM dédiée."
+  fi
   if [ "$(hostname)" = "cloudshell" ] || [ -n "${OCI_CLI_CLOUD_SHELL:-}" ]; then
     die "vous êtes dans Oracle Cloud Shell (le terminal du navigateur), pas sur la VM. Connectez-vous d'abord à la VM (ssh), puis relancez ce script là-bas."
   fi
@@ -252,7 +296,7 @@ uninstall() {
   if [ "$n" -gt 0 ]; then
     warn "$n fichier(s) de données encore sur la VM (dont la journée en cours, pas encore envoyée)"
   fi
-  read -r -p "  Tapez OUI pour supprimer le conteneur et l'image du collecteur : " answer
+  read -r -p "  Tapez OUI pour supprimer le conteneur et l'image du collecteur : " answer || answer=""
   [ "$answer" = "OUI" ] || die "annulé, rien n'a été supprimé"
   dc down --rmi local
   ok "conteneur et image supprimés. Le dossier $ROOT (et data/) reste : supprimez-le vous-même si besoin."
@@ -262,6 +306,7 @@ main() {
   ROOT=$(cd "$(dirname "$0")/.." && pwd)
   cd "$ROOT"
   case "${1:-help}" in
+    prepare) prepare ;;
     install) install ;;
     status) status ;;
     configure)

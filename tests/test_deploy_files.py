@@ -83,10 +83,46 @@ def test_vm_script_is_lf_and_only_drives_its_own_compose_project():
     code = "\n".join(code)
     # every compose call goes through dc(), pinned to docker/compose.yaml
     assert code.count("compose -f") == 1 and '"$ROOT/docker/compose.yaml"' in code
-    for forbidden in ("prune", "docker rm ", "docker stop", "systemctl enable", "systemctl start",
-                      "ufw", "iptables", "sysctl", "crontab", "HF_TOKEN\")\"\n"):  # fmt: skip
+    for forbidden in ("prune", "docker rm ", "docker stop", "ufw", "iptables", "sysctl",
+                      "crontab", "HF_TOKEN\")\"\n"):  # fmt: skip
         assert forbidden not in code, forbidden
     assert 'echo "$v"' not in code and "printf '%s' \"$v\"" not in code  # token never printed
+    # system changes live only in prepare(), which first refuses the family VM
+    prepare = code.split("\nprepare() {", 1)[1].split("\n}\n", 1)[0]
+    assert prepare.index("family_vm") < prepare.index("apt-get")
+    outside = code.replace(prepare, "")
+    assert "apt-get" not in outside and "systemctl enable" not in outside
+    assert "family_vm" in code.split("\ncheck_prereqs() {", 1)[1].split("\n}\n", 1)[0]
+
+
+OCI_SH = ROOT / "scripts" / "oci_create_vm.sh"
+
+
+def test_oci_script_only_creates_one_always_free_vm():
+    text = OCI_SH.read_text(encoding="utf-8")
+    assert b"\r\n" not in OCI_SH.read_bytes()
+    code = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    calls = re.findall(r"\boci (?:compute|search|iam|network)[\w .-]*", code)
+    verbs = {c.split()[1] + " " + c.split()[2] for c in calls if len(c.split()) > 2}
+    allowed = {"compute instance", "compute image", "search resource"}
+    assert verbs <= allowed, verbs
+    destructive = (
+        r"\b(instance (terminate|action|update)|delete|security-list|vcn update|--force)\b"
+    )
+    assert not re.search(destructive, code), re.search(destructive, code)
+    shapes = set(re.findall(r"VM\.Standard\.[\w.]+", code))
+    assert shapes == {"VM.Standard.A1.Flex", "VM.Standard.E2.1.Micro"}  # Always Free only
+    assert '"ocpus": 1, "memoryInGBs": 6' in code
+    assert not re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", text)  # no IP in the repo
+    assert "PRIVATE KEY" not in text
+
+
+def test_oci_script_syntax():
+    bash = _git_bash()
+    if bash is None:
+        pytest.skip("bash not available")
+    res = subprocess.run([bash, "-n", str(OCI_SH)], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
 
 
 def test_vm_script_syntax():

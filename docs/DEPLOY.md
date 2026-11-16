@@ -8,14 +8,25 @@ configuration système. Dans toutes les commandes, `dc` désigne :
 alias dc='docker compose -f docker/compose.yaml'   # à retaper après chaque reconnexion, ou noter à part
 ```
 
-## 0. Méthode rapide (recommandée) : le script `scripts/vm.sh`
+## 0. Méthode rapide (recommandée)
 
-Après avoir créé le dataset et le jeton Hugging Face (section 2) :
+**Le collecteur a sa propre VM** (`tc-collector`), jamais la VM des appels familiaux `siwel-turn`
+(1 Go de RAM, coturn). `scripts/vm.sh` refuse d'ailleurs de s'installer sur une VM qui fait tourner
+coturn ou siwel.
+
+1. Créer la VM, une seule fois : dans **Oracle Cloud Shell** (console Oracle, icône `>_`), coller
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/MerabtiAmar/train-et-correspondances/main/scripts/oci_create_vm.sh | bash
+   ```
+   Le script crée `tc-collector` en forme gratuite (Ampere 1 OCPU / 6 Go, sinon Micro 1 Go), sur le
+   réseau existant, et affiche son IP publique. Il ne modifie rien d'autre.
+2. Sur la nouvelle VM (`ssh -i <votre clé> ubuntu@<IP>`) :
 
 ```bash
 cd ~
 git clone https://github.com/MerabtiAmar/train-et-correspondances.git train-correspondances
 cd train-correspondances
+bash scripts/vm.sh prepare     # une fois : installe Docker (+ swap si moins de 2 Go de RAM)
 bash scripts/vm.sh install     # vérifie, pose 3 questions, construit, démarre, contrôle la sécurité
 ```
 
