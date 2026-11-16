@@ -41,8 +41,11 @@ prepare() {
   if command -v docker >/dev/null && sudo docker compose version >/dev/null 2>&1; then
     ok "docker et compose déjà présents"
   else
-    sudo apt-get update -qq
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2 git >/dev/null
+    # A fresh VM runs cloud-init and unattended upgrades first: wait instead of failing on the lock.
+    if command -v cloud-init >/dev/null; then sudo cloud-init status --wait >/dev/null 2>&1 || true; fi
+    sudo apt-get -o DPkg::Lock::Timeout=900 update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=900 install -y -qq \
+      docker.io docker-compose-v2 git >/dev/null
     ok "installé : $(docker --version)"
   fi
   sudo systemctl enable --now docker >/dev/null 2>&1
