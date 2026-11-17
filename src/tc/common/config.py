@@ -18,9 +18,8 @@ class Settings(BaseSettings):
     trip_updates_url: str = (
         "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates"
     )
-    trip_updates_url_fallback: str = (
-        "https://proxy.transport.data.gouv.fr/resource/sncf-all-gtfs-rt-trip-updates"
-    )
+    # Empty = no fallback. sncf-all-gtfs-rt-trip-updates answered HTTP 404 on 2026-11-17.
+    trip_updates_url_fallback: str = ""
     alerts_url: str = "https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-service-alerts"
     static_gtfs_url: str = (
         "https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip"

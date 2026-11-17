@@ -9,7 +9,8 @@ paths:
 # SNCF feeds: verified facts (November 2026, transport.data.gouv.fr)
 
 ## URLs
-- Trip Updates (GTFS-RT): try in order, keep the first that returns a non-empty, recent feed, log which one: `https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates`, then `https://proxy.transport.data.gouv.fr/resource/sncf-all-gtfs-rt-trip-updates`
+- Trip Updates (GTFS-RT): `https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates`. The former fallback `.../sncf-all-gtfs-rt-trip-updates` answers HTTP 404 (checked 2026-11-17), so `TRIP_UPDATES_URL_FALLBACK` is empty by default; the fallback mechanism stays for a future second source.
+- Observed on the first night (2026-11-17, 00:44 Paris): one single empty cycle of the primary feed. Cause not verified.
 - Service Alerts (GTFS-RT): `https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-service-alerts`
 - Static GTFS (TGV, Intercités, TER), about 4-5 MB zip: `https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip`
 - Spare real-time source, not used yet: `https://proxy.transport.data.gouv.fr/resource/sncf-siri-lite-estimated-timetable`
