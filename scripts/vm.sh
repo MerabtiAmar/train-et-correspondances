@@ -144,7 +144,11 @@ configure() {
 
 # ---- checks --------------------------------------------------------------------------------
 
-list_ports() { ss -tuln | awk 'NR > 1 { print $1, $5 }' | sort -u; }
+# Ports reachable from outside the VM. Loopback listeners (e.g. containerd's private port,
+# which changes at every restart) cannot be reached from the network and are ignored.
+list_ports() {
+  ss -tuln | awk 'NR > 1 && $5 !~ /^(127\.|\[::1\]|\[::ffff:127\.)/ { print $1, $5 }' | sort -u
+}
 
 check_prereqs() {
   say "Vérifications (lecture seule)"
@@ -225,9 +229,9 @@ verify() {
   if [ -f "$ROOT/logs/ports-before.txt" ] && command -v ss >/dev/null; then
     list_ports >"$ROOT/logs/ports-after.txt"
     if diff -q "$ROOT/logs/ports-before.txt" "$ROOT/logs/ports-after.txt" >/dev/null; then
-      ok "ports ouverts de la VM identiques à avant l'installation"
+      ok "ports accessibles de l'extérieur identiques à avant l'installation"
     else
-      warn "les ports de la VM ont changé depuis l'installation (souvent l'autre application, ex. un appel en cours) :"
+      warn "les ports accessibles de l'extérieur ont changé depuis l'installation :"
       diff "$ROOT/logs/ports-before.txt" "$ROOT/logs/ports-after.txt" | sed 's/^/       /' || true
     fi
   fi

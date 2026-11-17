@@ -10,13 +10,12 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git log *)",
-      "Bash(ssh tc-vm *)"
-    ],
-    "ask": [
+      "Bash(ssh tc-vm *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(docker *)",
       "Bash(uv add *)",
       "Bash(uv remove *)",
-      "Bash(docker *)",
-      "Bash(git push *)",
       "WebFetch",
       "WebSearch"
     ],

@@ -8,7 +8,7 @@ Predict, before booking, the probability that a French train is late or cancelle
 ## Hard constraints
 - IMPORTANT: budget is 0 €. Only free tiers: Oracle Cloud Always Free, Hugging Face (public dataset), GitHub (public repo), Cloudflare Pages, Kaggle. Never add a paid service or something that only works with one. If a task seems to need money, stop and ask.
 - The collector runs on its own Oracle Always Free VM (not the family-app VM, see below). Everything we ship must still: open no ports, cap CPU and memory, cap local disk use, restart on its own.
-- Autonomy (owner, 2026-11-16): do everything you can yourself without asking; interrupt the owner only for something serious, a security problem, anything that could cost money, or a credential only they hold.
+- Autonomy (owner, 2026-11-16/17): full control of the project. Never ask permission to run a command (`.claude/settings.json` has no "ask" rule; git push, docker, uv add/remove and web access are allowed; only the deny list protecting secrets and data stays). Interrupt the owner only for something serious, a security problem, anything that could cost money, or a credential only they hold.
 - Two Oracle VMs. `siwel-turn` hosts the owner's family video calls (coturn + siwel-push): **off-limits**, never deploy or change anything there. The collector runs on its own Always Free VM `tc-collector`, reached via `ssh tc-vm` (alias in `~/.ssh/config` on the dev machine, dedicated key; commands run without per-command approval). On `tc-collector` system setup is allowed (`bash scripts/vm.sh prepare`: Docker, swap); keep it dedicated to this project. No scp/rsync. Never write a VM IP in the repo. Keep `scripts/vm.sh` and `docs/DEPLOY.md` working so the owner can still do everything by hand.
 - Remote resources: the owner allows creating free ones when we hold the means (e.g. a Cloud Shell script the owner runs). Never anything paid. Never ask for account-wide credentials (Oracle API keys, HF tokens beyond one dataset). Code reads names and tokens from env vars and never calls `create_repo`.
 - ODbL: keep the attribution "Données SNCF Voyageurs, licence ODbL" in README and in the HF dataset card. The derived archive is published openly on HF on purpose (share-alike).
@@ -21,7 +21,7 @@ Predict, before booking, the probability that a French train is late or cancelle
 
 ## Stack
 Python 3.12, uv, httpx, gtfs-realtime-bindings, pyarrow, pydantic-settings, huggingface_hub, pytest, ruff. Later phases: duckdb, polars, lightgbm, mlflow (local), static site.
-Ask before adding any other dependency.
+Add another dependency only when clearly needed (free, maintained, small); record why in an ADR.
 
 ## Layout
 - `src/tc/ingest/` fetch, parse, reduce feeds
@@ -42,7 +42,7 @@ Ask before adding any other dependency.
 - Keep command output short: `-q` flags, `| tail -n 40`.
 - Small verified steps: write the test, implement, run it, fix. Show evidence (test output), not claims.
 - Do not paste whole files back into the chat.
-- If a fact is missing (URL, schema, behaviour of the feed), check `.claude/rules/` and `docs/` first, then ask. Do not browse the web unless asked.
+- If a fact is missing (URL, schema, behaviour of the feed), check `.claude/rules/` and `docs/` first, then verify it yourself (a request or a web check is fine) and record verified facts in `.claude/rules/`.
 - End every task by updating `PROGRESS.md` (≤ 25 lines: done, next, open questions) and give me a summary in French of ≤ 10 lines.
 - Code, comments, commits: English. Talk to me in French, briefly.
 
